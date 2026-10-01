@@ -9,94 +9,68 @@ from PIL import Image
 # =========================================================
 
 st.set_page_config(
-    page_title="Cat vs Dog AI",
+    page_title="Cat vs Dog Classifier",
     page_icon="🐾",
-    layout="wide"
+    layout="centered"
 )
 
 # =========================================================
-# CUSTOM CSS
+# SIMPLE CSS
 # =========================================================
 
 st.markdown("""
 <style>
 
-    /* Main background */
-    .stApp {
-        background: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
-    }
+.main-title {
+    text-align: center;
+    font-size: 42px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
 
-    /* Header */
-    .main-title {
-        text-align: center;
-        font-size: 48px;
-        font-weight: 800;
-        margin-top: 10px;
-        margin-bottom: 5px;
-        color: #22223b;
-    }
+.sub-title {
+    text-align: center;
+    font-size: 17px;
+    color: #666666;
+    margin-bottom: 30px;
+}
 
-    .subtitle {
-        text-align: center;
-        font-size: 18px;
-        color: #666;
-        margin-bottom: 35px;
-    }
+.result-box {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #dddddd;
+    text-align: center;
+    margin-top: 20px;
+}
 
-    /* Upload box */
-    .upload-card {
-        background: white;
-        padding: 28px;
-        border-radius: 20px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-        margin-bottom: 20px;
-    }
-
-    /* Result card */
-    .result-card {
-        background: white;
-        padding: 25px;
-        border-radius: 20px;
-        text-align: center;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-        margin-top: 20px;
-    }
-
-    .prediction {
-        font-size: 32px;
-        font-weight: 800;
-        color: #22223b;
-        margin: 10px;
-    }
-
-    .confidence {
-        font-size: 20px;
-        color: #555;
-    }
-
-    /* Footer */
-    .footer {
-        text-align: center;
-        color: #777;
-        margin-top: 45px;
-        font-size: 14px;
-    }
-
-    /* Hide Streamlit menu */
-    #MainMenu {
-        visibility: hidden;
-    }
-
-    footer {
-        visibility: hidden;
-    }
+.result-text {
+    font-size: 30px;
+    font-weight: 700;
+}
 
 </style>
 """, unsafe_allow_html=True)
 
 
 # =========================================================
-# CNN MODEL
+# TITLE
+# =========================================================
+
+st.markdown(
+    '<div class="main-title">🐾 Cat vs Dog Classifier</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="sub-title">'
+    'Upload an image and let the CNN model predict the animal.'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+
+# =========================================================
+# MODEL
 # =========================================================
 
 class SimpleCNN(nn.Module):
@@ -108,8 +82,7 @@ class SimpleCNN(nn.Module):
         self.features = nn.Sequential(
 
             nn.Conv2d(
-                3,
-                16,
+                3, 16,
                 kernel_size=3,
                 padding=1
             ),
@@ -122,8 +95,7 @@ class SimpleCNN(nn.Module):
             ),
 
             nn.Conv2d(
-                16,
-                32,
+                16, 32,
                 kernel_size=3,
                 padding=1
             ),
@@ -184,6 +156,16 @@ def load_model():
     return model
 
 
+model = load_model()
+
+
+# =========================================================
+# CLASS NAMES
+# =========================================================
+
+class_names = ["cat", "dog"]
+
+
 # =========================================================
 # IMAGE PREPROCESSING
 # =========================================================
@@ -202,157 +184,102 @@ preprocess = transforms.Compose([
 
 
 # =========================================================
-# HEADER
+# UPLOAD
 # =========================================================
 
-st.markdown(
-    '<div class="main-title">🐾 Cat vs Dog AI</div>',
-    unsafe_allow_html=True
-)
+st.subheader("📤 Upload Image")
 
-st.markdown(
-    '<div class="subtitle">'
-    'Upload an image and let the CNN model identify whether it is a Cat or Dog.'
-    '</div>',
-    unsafe_allow_html=True
+uploaded_file = st.file_uploader(
+    "Choose a JPG, JPEG or PNG image",
+    type=["jpg", "jpeg", "png"]
 )
 
 
 # =========================================================
-# LOAD MODEL
+# PREDICTION
 # =========================================================
 
-model = load_model()
+if uploaded_file is not None:
 
-class_names = ["cat", "dog"]
+    image = Image.open(uploaded_file).convert("RGB")
 
-
-# =========================================================
-# TWO COLUMN LAYOUT
-# =========================================================
-
-left_col, right_col = st.columns(
-    [1, 1],
-    gap="large"
-)
-
-
-# =========================================================
-# LEFT SIDE - UPLOAD
-# =========================================================
-
-with left_col:
-
-    st.markdown(
-        '<div class="upload-card">',
-        unsafe_allow_html=True
+    st.image(
+        image,
+        caption="Uploaded Image",
+        use_container_width=True
     )
 
-    st.subheader("📤 Upload Image")
+    st.divider()
 
-    uploaded_file = st.file_uploader(
-        "Choose a Cat or Dog image",
-        type=["jpg", "jpeg", "png"]
-    )
+    # Prediction button
+    if st.button(
+        "🔍 Predict Image",
+        use_container_width=True
+    ):
 
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True
-    )
+        with st.spinner("Analyzing image..."):
 
-    if uploaded_file is not None:
+            input_tensor = preprocess(image)
 
-        image = Image.open(
-            uploaded_file
-        ).convert("RGB")
+            input_batch = input_tensor.unsqueeze(0)
 
-        st.image(
-            image,
-            caption="Uploaded Image",
-            use_container_width=True
-        )
+            with torch.no_grad():
 
+                output = model(input_batch)
 
-# =========================================================
-# RIGHT SIDE - PREDICTION
-# =========================================================
+                probabilities = torch.nn.functional.softmax(
+                    output[0],
+                    dim=0
+                )
 
-with right_col:
+                predicted_probability, predicted_idx = torch.max(
+                    probabilities,
+                    0
+                )
 
-    st.markdown(
-        '<div class="result-card">',
-        unsafe_allow_html=True
-    )
+                predicted_class = class_names[
+                    predicted_idx.item()
+                ]
 
-    st.subheader("🤖 AI Prediction")
+                confidence = (
+                    predicted_probability.item() * 100
+                )
 
-    if uploaded_file is None:
-
-        st.info(
-            "👆 Upload an image to get the prediction."
-        )
-
-    else:
-
-        # Preprocess
-        input_tensor = preprocess(image)
-
-        input_batch = input_tensor.unsqueeze(0)
-
-        # Prediction
-        with torch.no_grad():
-
-            output = model(input_batch)
-
-            probabilities = torch.nn.functional.softmax(
-                output[0],
-                dim=0
-            )
-
-            predicted_probability, predicted_idx = torch.max(
-                probabilities,
-                0
-            )
-
-            predicted_class = class_names[
-                predicted_idx.item()
-            ]
-
-            confidence = (
-                predicted_probability.item() * 100
-            )
-
-        # Emoji
+        # Result
         if predicted_class == "cat":
             emoji = "🐱"
         else:
             emoji = "🐶"
 
         st.markdown(
-            f'<div class="prediction">'
+            '<div class="result-box">',
+            unsafe_allow_html=True
+        )
+
+        st.markdown(
+            f'<div class="result-text">'
             f'{emoji} {predicted_class.upper()}'
             f'</div>',
             unsafe_allow_html=True
         )
 
-        st.markdown(
-            f'<div class="confidence">'
-            f'Confidence: <b>{confidence:.2f}%</b>'
-            f'</div>',
-            unsafe_allow_html=True
+        st.write(
+            f"Confidence: **{confidence:.2f}%**"
         )
 
         st.progress(
-            int(confidence)
+            min(int(confidence), 100)
         )
 
-        st.success(
-            f"Prediction: {predicted_class.capitalize()}"
+        st.markdown(
+            '</div>',
+            unsafe_allow_html=True
         )
 
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True
+else:
+
+    st.info(
+        "👆 Please upload an image to start prediction."
     )
 
 
@@ -360,9 +287,9 @@ with right_col:
 # FOOTER
 # =========================================================
 
-st.markdown(
-    '<div class="footer">'
-    '🐾 Powered by PyTorch CNN | Cat vs Dog Image Classification'
-    '</div>',
-    unsafe_allow_html=True
+st.divider()
+
+st.caption(
+    "🐾 Cat vs Dog Image Classification • "
+    "Built with PyTorch and Streamlit"
 )
